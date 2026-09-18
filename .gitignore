@@ -1,4 +1,5 @@
 src/
 pkg/
+synosnap-source/
 *.pkg.tar.*
 Synology Active Backup for Business Agent-*-x64-rpm.zip
