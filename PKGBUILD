@@ -1,7 +1,7 @@
 pkgbase=synology-active-backup-business-agent
 pkgname=(synology-active-backup-business-agent synosnap-dkms)
 pkgver=3.1.0_4967
-pkgrel=1
+pkgrel=2
 pkgdesc='Synology Active Backup for Business Agent, with a CachyOS 7.2 synosnap DKMS module'
 arch=(x86_64)
 url='https://www.synology.com/'
