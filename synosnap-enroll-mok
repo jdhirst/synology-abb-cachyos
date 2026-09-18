@@ -1,0 +1,26 @@
+#!/bin/bash
+set -euo pipefail
+
+if (( EUID != 0 )); then
+  echo 'Run as root.' >&2
+  exit 1
+fi
+if ! command -v mokutil >/dev/null; then
+  echo 'Install mokutil first: pacman -S mokutil' >&2
+  exit 1
+fi
+if ! mokutil --sb-state 2>/dev/null | grep -qi 'SecureBoot enabled'; then
+  echo 'Secure Boot is not enabled; no MOK enrollment is needed.'
+  exit 0
+fi
+
+# DKMS 3 creates this keypair the first time it builds a module. Trigger the
+# normal DKMS path rather than generating a private key in this script.
+dkms autoinstall -m synosnap -v 0.12.12
+key=/var/lib/dkms/mok.key
+cert=/var/lib/dkms/mok.pub
+[[ -r $key && -r $cert ]] || { echo 'DKMS did not create its MOK keypair.' >&2; exit 1; }
+
+echo "Importing $cert. Set a one-time password for MokManager on next boot."
+mokutil --import "$cert"
+echo 'Reboot, select Enroll MOK in MokManager, then run: modprobe synosnap'

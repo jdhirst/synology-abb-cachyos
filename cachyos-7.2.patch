@@ -1,0 +1,176 @@
+diff --git a/build-tools/patches/synosnap/configure-tests/feature-tests/Makefile b/build-tools/patches/synosnap/configure-tests/feature-tests/Makefile
+--- a/build-tools/patches/synosnap/configure-tests/feature-tests/Makefile
++++ b/build-tools/patches/synosnap/configure-tests/feature-tests/Makefile
+@@ -8,7 +8,10 @@ obj-m :=$(OBJ)
+ KERNELVERSION ?= $(shell uname -r)
+ KDIR := /lib/modules/$(KERNELVERSION)/build
+ PWD := $(shell pwd)
+-EXTRA_CFLAGS := -g -Werror -I$(src)/../..
++# CachyOS's clang-built kernels promote uninitialised dummy probe arguments to
++# errors.  These probes only test whether an API type-checks, so that diagnostic
++# must not be allowed to turn an existing API into a false negative.
++EXTRA_CFLAGS := -g -Werror -Wno-error=uninitialized -Wno-error=uninitialized-const-pointer -I$(src)/../..
+ BUILDDIR ?= $(PWD)/build/$(OBJ)
+ BUILDDIR_MAKEFILE ?= $(PWD)/build/$(OBJ)/Makefile
+ BUILDDIR_SOURCE ?= $(PWD)/build/$(OBJ)/$(SRC)
+diff --git a/build-tools/patches/synosnap/genconfig.sh b/build-tools/patches/synosnap/genconfig.sh
+--- a/build-tools/patches/synosnap/genconfig.sh
++++ b/build-tools/patches/synosnap/genconfig.sh
+@@ -48,6 +48,10 @@ deb_extract_system_map() {
+ 
+ SYSTEM_MAP_FILE="/lib/modules/${KERNEL_VERSION}/System.map"
+ 
++# Arch/CachyOS installs the map with the kernel build tree rather than beside
++# the loadable modules.  Check it before falling back to distro-specific paths.
++[ ! -f "$SYSTEM_MAP_FILE" ] && SYSTEM_MAP_FILE="/usr/lib/modules/${KERNEL_VERSION}/build/System.map"
++
+ # Use standard location at the /boot
+ [ ! -f "$SYSTEM_MAP_FILE" ] && SYSTEM_MAP_FILE="/boot/System.map-${KERNEL_VERSION}"
+ if [ ! -f "$SYSTEM_MAP_FILE" ] || [ $(cat "$SYSTEM_MAP_FILE" | wc -l) -lt 10 ]; then
+diff --git a/build-tools/patches/synosnap/includes.h b/build-tools/patches/synosnap/includes.h
+--- a/build-tools/patches/synosnap/includes.h
++++ b/build-tools/patches/synosnap/includes.h
+@@ -30,6 +30,7 @@
+ #include <linux/unistd.h>
+ #include <linux/vmalloc.h>
+ #include <linux/random.h>
++#include <linux/string.h>
+ #include <asm/div64.h>
+ #include <linux/mm.h>
+ #include <linux/blk-mq.h>
+diff --git a/build-tools/patches/synosnap/main.c b/build-tools/patches/synosnap/main.c
+--- a/build-tools/patches/synosnap/main.c
++++ b/build-tools/patches/synosnap/main.c
+@@ -144,14 +144,11 @@ typedef mode_t fmode_t;
+ #endif
+ 
+ #ifndef HAVE_BLK_ALLOC_QUEUE_MK_REQ_FN_NODE_ID
+-struct request_queue* (*elastio_blk_alloc_queue)(int node_id) = (BLK_ALLOC_QUEUE_ADDR != 0) ?
+-	(struct request_queue* (*)(int node_id)) (BLK_ALLOC_QUEUE_ADDR + (long long)(((void *)kfree) - (void *)KFREE_ADDR)) : NULL;
++struct request_queue* (*elastio_blk_alloc_queue)(int node_id);
+ #endif
+ 
+-struct super_block* (*__elastio_snap_get_super)(struct block_device *) = (GET_SUPER_ADDR != 0) ?
+-	(struct super_block* (*)(struct block_device*)) (GET_SUPER_ADDR + (long long)(((void *)kfree) - (void *)KFREE_ADDR)) : NULL;
+-
+-struct super_block* (*__elastio_snap_user_get_super)(dev_t, bool) = (USER_GET_SUPER_ADDR != 0) ?
+-	(struct super_block* (*)(dev_t, bool)) (USER_GET_SUPER_ADDR + (long long)(((void *)kfree) - (void *)KFREE_ADDR)) : NULL;
++struct super_block* (*__elastio_snap_get_super)(struct block_device *);
++struct super_block* (*__elastio_snap_user_get_super)(dev_t, bool);
++
+ 
+ static struct super_block *elastio_snap_get_super(struct block_device *bdev)
+@@ -734,8 +730,7 @@ static inline MRF_RETURN_TYPE elastio_snap_null_mrf(struct request_queue *q, str
+ // And compat HAVE_BLK_MQ_SUBMIT_BIO doesn't allow us to detect whether it exported or not.
+ // Anyway this call by address works in all cases for the kernels 5.9+.
+ // Also elastio_blk_mq_submit_bio is set to NULL in case if address of the blk_mq_submit_bio function is not detected for further checks.
+-MRF_RETURN_TYPE (*elastio_blk_mq_submit_bio)(struct bio *) = (BLK_MQ_SUBMIT_BIO_ADDR != 0) ?
+-	(MRF_RETURN_TYPE (*)(struct bio *)) (BLK_MQ_SUBMIT_BIO_ADDR + (long long)(((void *)kfree) - (void *)KFREE_ADDR)) : NULL;
++MRF_RETURN_TYPE (*elastio_blk_mq_submit_bio)(struct bio *);
+ 
+ static inline MRF_RETURN_TYPE elastio_snap_null_mrf(struct bio *bio){
+ #ifndef MRF_RETURN_TYPE_VOID
+@@ -1626,7 +1621,7 @@ static int dentry_get_relative_pathname(struct dentry *dentry, char **buf, int *
+ 	while(parent->d_parent != parent){
+ 		len -= parent->d_name.len + 1;
+ 		pathname[len] = '/';
+-		strncpy(&pathname[len + 1], parent->d_name.name, parent->d_name.len);
++		memcpy(&pathname[len + 1], parent->d_name.name, parent->d_name.len);
+ 		parent = parent->d_parent;
+ 	}
+ 
+@@ -1665,7 +1660,7 @@ static int dentry_get_relative_pathname(struct dentry *dentry, char **buf, int *
+ 		goto error;
+ 	}
+ 
+-	strncpy(final_buf, pathname, len);
++	memcpy(final_buf, pathname, len);
+ 	free_page((unsigned long)page_buf);
+ 
+ 	*buf = final_buf;
+@@ -1710,7 +1705,7 @@ static int path_get_absolute_pathname(const struct path *path, char **buf, int *
+ 		goto error;
+ 	}
+ 
+-	strncpy(final_buf, pathname, len);
++	memcpy(final_buf, pathname, len);
+ 	free_page((unsigned long)page_buf);
+ 
+ 	*buf = final_buf;
+@@ -1786,9 +1781,9 @@ static int pathname_concat(const char *pathname1, const char *pathname2, char **
+ 	}
+ 	full_pathname[pathname1_len + need_leading_slash + pathname2_len] = '\0';
+ 
+-	strncpy(full_pathname, pathname1, pathname1_len);
++	memcpy(full_pathname, pathname1, pathname1_len);
+ 	if(need_leading_slash) full_pathname[pathname1_len] = '/';
+-	strncpy(full_pathname + pathname1_len + need_leading_slash, pathname2, pathname2_len);
++	memcpy(full_pathname + pathname1_len + need_leading_slash, pathname2, pathname2_len);
+ 
+ 	*path_out = full_pathname;
+ 	return 0;
+@@ -2734,2 +2734 @@
+-struct kmem_cache **vm_area_cache = (VM_AREA_CACHEP_ADDR != 0) ?
+-	(struct kmem_cache **) (VM_AREA_CACHEP_ADDR + (long long)(((void *)kfree) - (void *)KFREE_ADDR)) : NULL;
++struct kmem_cache **vm_area_cache;
+@@ -2738,2 +2737 @@
+-static struct kmem_cache **vma_lock_cache = (VMA_LOCK_CACHEP_ADDR != 0) ?
+-	(struct kmem_cache **) (VMA_LOCK_CACHEP_ADDR + (long long)(((void *)kfree) - (void *)KFREE_ADDR)) : NULL;
++static struct kmem_cache **vma_lock_cache;
+@@ -2741,3 +2739,21 @@
+ #endif
+ 
++#define ELASTIO_RESOLVE_SYMBOL(addr, type) \
++	((addr) ? (type)((unsigned long)(addr) + (unsigned long)kfree - (unsigned long)KFREE_ADDR) : NULL)
++static void elastio_snap_resolve_symbols(void)
++{
++#ifndef HAVE_BLK_ALLOC_QUEUE_MK_REQ_FN_NODE_ID
++	elastio_blk_alloc_queue = ELASTIO_RESOLVE_SYMBOL(BLK_ALLOC_QUEUE_ADDR, struct request_queue* (*)(int));
++#endif
++	__elastio_snap_get_super = ELASTIO_RESOLVE_SYMBOL(GET_SUPER_ADDR, struct super_block* (*)(struct block_device *));
++	__elastio_snap_user_get_super = ELASTIO_RESOLVE_SYMBOL(USER_GET_SUPER_ADDR, struct super_block* (*)(dev_t, bool));
++#ifdef USE_BDOPS_SUBMIT_BIO
++	elastio_blk_mq_submit_bio = ELASTIO_RESOLVE_SYMBOL(BLK_MQ_SUBMIT_BIO_ADDR, MRF_RETURN_TYPE (*)(struct bio *));
++#endif
++	vm_area_cache = ELASTIO_RESOLVE_SYMBOL(VM_AREA_CACHEP_ADDR, struct kmem_cache **);
++#ifdef HAVE_VM_AREA_STRUCT_VM_LOCK
++	vma_lock_cache = ELASTIO_RESOLVE_SYMBOL(VMA_LOCK_CACHEP_ADDR, struct kmem_cache **);
++#endif
++}
++
+ static struct vm_area_struct *elastio_snap_vm_area_allocate(struct mm_struct *mm)
+@@ -6931,7 +6954,7 @@ static asmlinkage long mount_hook(char __user *dev_name, char __user *dir_name,
+ 	int ret;
+ 	int ret_dev;
+ 	int ret_dir;
+-	long sys_ret;
++	long sys_ret = 0;
+ 	unsigned int idx;
+ 	char *buff_dev_name = NULL;
+ 	char *buff_dir_name = NULL;
+@@ -8199,6 +8222,7 @@ static int __init agent_init(void){
+ 	int ret;
+ 
+ 	LOG_DEBUG("module init");
++	elastio_snap_resolve_symbols();
+ 
+ #ifdef NETLINK_DEBUG
+ 	ret = nl_debug_init();
+diff --git a/build-tools/patches/synosnap/nl_debug.c b/build-tools/patches/synosnap/nl_debug.c
+--- a/build-tools/patches/synosnap/nl_debug.c
++++ b/build-tools/patches/synosnap/nl_debug.c
+@@ -1,4 +1,5 @@
+ #include "nl_debug.h"
++#include <linux/string.h>
+ 
+ static uint64_t seq_num = 1;
+ struct sock *nl_sock = NULL;
+@@ -31,7 +32,7 @@ int nl_send_event(enum nl_msg_type type, const char *func, int line, struct nl_p
+ 
+ 	if (func) {
+ 		msg->source.line = line;
+-		strncpy(msg->source.func, func, sizeof(msg->source.func));
++		strscpy(msg->source.func, func, sizeof(msg->source.func));
+ 	}
+ 
+ 	memcpy(&msg->params, params, sizeof(*params));

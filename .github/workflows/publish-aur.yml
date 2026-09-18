@@ -1,0 +1,42 @@
+name: Publish to AUR
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: Type PUBLISH to send the current packaging sources to AUR
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    # The protected `aur` environment should also require you as reviewer.
+    if: github.actor == github.repository_owner && inputs.confirm == 'PUBLISH'
+    runs-on: ubuntu-latest
+    environment: aur
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure AUR deploy key
+        env:
+          AUR_SSH_PRIVATE_KEY: ${{ secrets.AUR_SSH_PRIVATE_KEY }}
+        run: |
+          test -n "$AUR_SSH_PRIVATE_KEY"
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$AUR_SSH_PRIVATE_KEY" > ~/.ssh/aur
+          chmod 600 ~/.ssh/aur
+          ssh-keyscan -t ed25519 aur.archlinux.org >> ~/.ssh/known_hosts
+      - name: Push AUR packaging repository
+        run: |
+          export GIT_SSH_COMMAND="ssh -i $HOME/.ssh/aur -o IdentitiesOnly=yes"
+          git clone ssh://aur@aur.archlinux.org/synology-active-backup-business-agent.git aur
+          cp PKGBUILD .SRCINFO cachyos-7.2.patch synosnap-dkms.conf synosnap-dkms.install synosnap-enroll-mok aur/
+          cd aur
+          git config user.name "${{ github.repository_owner }}"
+          git config user.email "${{ github.repository_owner }}@users.noreply.github.com"
+          git add PKGBUILD .SRCINFO cachyos-7.2.patch synosnap-dkms.conf synosnap-dkms.install synosnap-enroll-mok
+          git diff --cached --quiet && exit 0
+          git commit -m "Update to ${GITHUB_SHA}"
+          git push

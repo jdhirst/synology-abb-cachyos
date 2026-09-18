@@ -1,0 +1,16 @@
+post_install() {
+  dkms add -m synosnap -v 0.12.12
+  dkms autoinstall -m synosnap -v 0.12.12
+}
+
+post_upgrade() {
+  post_install
+}
+
+pre_upgrade() {
+  dkms remove -m synosnap -v 0.12.12 --all || true
+}
+
+pre_remove() {
+  dkms remove -m synosnap -v 0.12.12 --all || true
+}

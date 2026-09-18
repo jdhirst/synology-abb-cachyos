@@ -1,0 +1,49 @@
+name: Build packages
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    # PRs from forks and PRs opened by anyone other than the repository owner
+    # never receive a runner. Keep the test equally strict if this moves to an org.
+    if: >-
+      github.event_name != 'pull_request' ||
+      (github.event.pull_request.head.repo.full_name == github.repository &&
+       github.event.pull_request.author_association == 'OWNER' &&
+       github.actor == github.repository_owner)
+    runs-on: ubuntu-latest
+    container: archlinux:latest
+    env:
+      ABB_RPM_URL: ${{ secrets.ABB_RPM_URL }}
+    steps:
+      - name: Install build tools
+        run: |
+          pacman -Syu --noconfirm
+          pacman -S --needed --noconfirm base-devel git curl libarchive unzip
+          useradd --create-home builder
+          chown -R builder:builder "$GITHUB_WORKSPACE"
+      - uses: actions/checkout@v4
+      - name: Fetch official installer for this private build
+        if: env.ABB_RPM_URL != ''
+        working-directory: .
+        run: |
+          curl --fail --location --retry 3 --output 'Synology Active Backup for Business Agent-3.1.0-4967-x64-rpm.zip' "$ABB_RPM_URL"
+      - name: Validate AUR metadata
+        run: su builder -c 'makepkg --printsrcinfo > .SRCINFO && bash -n PKGBUILD synosnap-dkms.install synosnap-enroll-mok'
+      - name: Build package archives
+        if: env.ABB_RPM_URL != ''
+        run: su builder -c 'makepkg --nodeps --noconfirm'
+      - uses: actions/upload-artifact@v4
+        if: env.ABB_RPM_URL != ''
+        with:
+          name: packages
+          path: '*.pkg.tar.*'
+          if-no-files-found: error

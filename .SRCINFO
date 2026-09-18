@@ -1,0 +1,40 @@
+pkgbase = synology-active-backup-business-agent
+	pkgdesc = Synology Active Backup for Business Agent, with a CachyOS 7.2 synosnap DKMS module
+	pkgver = 3.1.0_4967
+	pkgrel = 1
+	url = https://www.synology.com/
+	arch = x86_64
+	license = custom
+	makedepends = git
+	makedepends = libarchive
+	makedepends = unzip
+	depends = bash
+	depends = glibc
+	depends = systemd-libs
+	source = Synology Active Backup for Business Agent-3.1.0-4967-x64-rpm.zip
+	source = synosnap-source::git+https://github.com/Peppershade/abb-linux-agent.git#commit=d04e7ee2467005e5eee73ddaf6e4d33d50ddfcef
+	source = cachyos-7.2.patch
+	source = synosnap-dkms.conf
+	source = synosnap-enroll-mok
+	sha256sums = 78a10a90800ca9f9b613558fafc04d4bcf6d726adef07ded2d0f576bd48c8f27
+	sha256sums = SKIP
+	sha256sums = SKIP
+	sha256sums = SKIP
+	sha256sums = SKIP
+
+pkgname = synology-active-backup-business-agent
+	depends = bash
+	depends = glibc
+	depends = systemd-libs
+	depends = synosnap-dkms
+
+pkgname = synosnap-dkms
+	pkgdesc = Synology synosnap changed-block tracking kernel module (DKMS; CachyOS 7.2)
+	install = synosnap-dkms.install
+	depends = dkms>=3.0
+	depends = linux-cachyos-headers
+	depends = clang
+	depends = llvm
+	optdepends = mokutil: enroll the local DKMS signing certificate for Secure Boot
+	provides = synosnap=0.12.12
+	conflicts = synosnap
