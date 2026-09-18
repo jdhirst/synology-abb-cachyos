@@ -1,7 +1,7 @@
 pkgbase=synology-active-backup-business-agent
 pkgname=(synology-active-backup-business-agent synosnap-dkms)
 pkgver=3.1.0_4967
-pkgrel=8
+pkgrel=9
 pkgdesc='Synology Active Backup for Business Agent, with a CachyOS 7.2 synosnap DKMS module'
 arch=(x86_64)
 url='https://www.synology.com/'
@@ -59,7 +59,9 @@ package_synology-active-backup-business-agent() {
   install -d -m 755 "$pkgdir/opt/synosnap"
 
   install -d "$pkgdir/usr/bin"
-  ln -sf /opt/Synology/ActiveBackupforBusiness/bin/synology-backupd "$pkgdir/opt/Synology/ActiveBackupforBusiness/bin/abb-cli"
+  # This is a distinct vendor CLI binary, not a symlink to the daemon.
+  install -Dm755 "$srcdir/abb-root/bin/abb-cli" \
+    "$pkgdir/opt/Synology/ActiveBackupforBusiness/bin/abb-cli"
   install -Dm755 /dev/stdin "$pkgdir/usr/bin/abb-cli" <<'EOF'
 #!/bin/bash
 export LD_LIBRARY_PATH=/opt/Synology/ActiveBackupforBusiness/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}
