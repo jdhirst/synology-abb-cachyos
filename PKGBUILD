@@ -1,7 +1,7 @@
 pkgbase=synology-active-backup-business-agent
 pkgname=(synology-active-backup-business-agent synosnap-dkms)
 pkgver=3.1.0_4967
-pkgrel=2
+pkgrel=4
 pkgdesc='Synology Active Backup for Business Agent, with a CachyOS 7.2 synosnap DKMS module'
 arch=(x86_64)
 url='https://www.synology.com/'
@@ -77,5 +77,9 @@ package_synosnap-dkms() {
 
   install -d "$pkgdir/usr/src"
   cp -a "$srcdir/synosnap-${_synosnapver}" "$pkgdir/usr/src/synosnap-${_synosnapver}"
+  # This vendor userspace library is required by synology-backupd to talk to
+  # the kernel driver. Keep it while replacing only the vendor DKMS source.
+  install -d "$pkgdir/usr/lib"
+  [[ -d $srcdir/abb-root/usr/lib/synosnap ]] && cp -a "$srcdir/abb-root/usr/lib/synosnap" "$pkgdir/usr/lib/"
   install -Dm755 "$srcdir/synosnap-enroll-mok" "$pkgdir/usr/bin/synosnap-enroll-mok"
 }
