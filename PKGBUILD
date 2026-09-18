@@ -1,7 +1,7 @@
 pkgbase=synology-active-backup-business-agent
 pkgname=(synology-active-backup-business-agent synosnap-dkms)
 pkgver=3.1.0_4967
-pkgrel=7
+pkgrel=8
 pkgdesc='Synology Active Backup for Business Agent, with a CachyOS 7.2 synosnap DKMS module'
 arch=(x86_64)
 url='https://www.synology.com/'
@@ -52,6 +52,11 @@ package_synology-active-backup-business-agent() {
   # separately managed DKMS package below.
   rm -rf "$pkgdir/usr/src" "$pkgdir/opt/synosnap" "$pkgdir/etc/kernel" \
     "$pkgdir/usr/lib/kernel" "$pkgdir/usr/lib/synosnap"
+
+  # synology-backupd keeps its changed-block history here.  Keep the state
+  # directory, but not the vendor's kernel-module hooks/source that DKMS
+  # replaces in the split synosnap-dkms package.
+  install -d -m 755 "$pkgdir/opt/synosnap"
 
   install -d "$pkgdir/usr/bin"
   ln -sf /opt/Synology/ActiveBackupforBusiness/bin/synology-backupd "$pkgdir/opt/Synology/ActiveBackupforBusiness/bin/abb-cli"
