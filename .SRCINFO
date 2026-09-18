@@ -11,7 +11,7 @@ pkgbase = synology-active-backup-business-agent
 	depends = bash
 	depends = glibc
 	depends = systemd-libs
-	source = Synology Active Backup for Business Agent-3.1.0-4967-x64-rpm.zip
+	source = Synology Active Backup for Business Agent-3.1.0-4967-x64-rpm.zip::https://global.synologydownload.com/download/Utility/ActiveBackupBusinessAgent/3.1.0-4967/Linux/x86_64/Synology%20Active%20Backup%20for%20Business%20Agent-3.1.0-4967-x64-rpm.zip
 	source = synosnap-source::git+https://github.com/Peppershade/abb-linux-agent.git#commit=d04e7ee2467005e5eee73ddaf6e4d33d50ddfcef
 	source = cachyos-7.2.patch
 	source = synosnap-dkms.conf

@@ -9,7 +9,7 @@ license=(custom)
 depends=(bash glibc systemd-libs)
 makedepends=(git libarchive unzip)
 source=(
-  "Synology Active Backup for Business Agent-${pkgver/_/-}-x64-rpm.zip"
+  "Synology Active Backup for Business Agent-${pkgver/_/-}-x64-rpm.zip::https://global.synologydownload.com/download/Utility/ActiveBackupBusinessAgent/${pkgver/_/-}/Linux/x86_64/Synology%20Active%20Backup%20for%20Business%20Agent-${pkgver/_/-}-x64-rpm.zip"
   'synosnap-source::git+https://github.com/Peppershade/abb-linux-agent.git#commit=d04e7ee2467005e5eee73ddaf6e4d33d50ddfcef'
   cachyos-7.2.patch
   synosnap-dkms.conf

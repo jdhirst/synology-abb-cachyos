@@ -24,7 +24,7 @@ Connect the agent from Active Backup for Business on the NAS, take a small backu
 
 ## GitHub Actions and AUR publishing
 
-`build.yml` runs on `main` and only runs a pull-request job when the PR is from a branch in this repository and both the author and actor are the repository owner. Fork PRs never receive a runner or secrets. Set `ABB_RPM_URL` as a repository secret containing a direct, official Synology RPM ZIP URL; it is used only for private build jobs and is never committed or uploaded.
+`build.yml` runs on `main` and only runs a pull-request job when the PR is from a branch in this repository and both the author and actor are the repository owner. Fork PRs never receive a runner or secrets. The PKGBUILD downloads the official Synology RPM ZIP directly and verifies its SHA-256 digest; no installer URL secret is needed.
 
 `publish-aur.yml` is manual only. Create a protected GitHub environment named `aur`, restrict it to yourself, and add the `AUR_SSH_PRIVATE_KEY` repository secret containing an AUR deploy key. Invoke the workflow as the repository owner and type `PUBLISH`; it regenerates no binaries, only pushes the AUR packaging sources.
 
