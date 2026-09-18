@@ -1,7 +1,7 @@
 pkgbase=synology-active-backup-business-agent
 pkgname=(synology-active-backup-business-agent synosnap-dkms)
 pkgver=3.1.0_4967
-pkgrel=4
+pkgrel=5
 pkgdesc='Synology Active Backup for Business Agent, with a CachyOS 7.2 synosnap DKMS module'
 arch=(x86_64)
 url='https://www.synology.com/'
@@ -13,9 +13,10 @@ source=(
   'synosnap-source::git+https://github.com/Peppershade/abb-linux-agent.git#commit=d04e7ee2467005e5eee73ddaf6e4d33d50ddfcef'
   cachyos-7.2.patch
   synosnap-dkms.conf
+  dkms-make
   synosnap-enroll-mok
 )
-sha256sums=('78a10a90800ca9f9b613558fafc04d4bcf6d726adef07ded2d0f576bd48c8f27' SKIP SKIP SKIP SKIP)
+sha256sums=('78a10a90800ca9f9b613558fafc04d4bcf6d726adef07ded2d0f576bd48c8f27' SKIP SKIP SKIP SKIP SKIP)
 _synosnapver=0.12.12
 
 prepare() {
@@ -37,6 +38,7 @@ prepare() {
   cp -a "$srcdir/synosnap-source/build-tools/patches/synosnap" "$srcdir/synosnap-${_synosnapver}"
   patch -d "$srcdir/synosnap-${_synosnapver}" -p4 < "$srcdir/cachyos-7.2.patch"
   install -Dm644 "$srcdir/synosnap-dkms.conf" "$srcdir/synosnap-${_synosnapver}/dkms.conf"
+  install -Dm755 "$srcdir/dkms-make" "$srcdir/synosnap-${_synosnapver}/dkms-make"
 }
 
 package_synology-active-backup-business-agent() {

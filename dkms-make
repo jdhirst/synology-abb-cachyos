@@ -1,0 +1,16 @@
+#!/bin/bash
+set -euo pipefail
+
+kernelver=${1:?missing target kernel version}
+action=${2:-}
+srcdir=$(cd -- "$(dirname -- "$0")" && pwd)
+kernel_config="/usr/lib/modules/${kernelver}/build/include/generated/autoconf.h"
+
+# CachyOS ships both clang-built and GCC-built flavours. Using the compiler
+# encoded in each target kernel's configuration is required for DKMS builds of
+# all installed kernels, not only the currently running one.
+if grep -qx 'CONFIG_CC_IS_CLANG=y' "$kernel_config"; then
+  exec make -C "$srcdir" KERNELVERSION="$kernelver" CC=clang LLVM=1 "$action"
+else
+  exec make -C "$srcdir" KERNELVERSION="$kernelver" CC=gcc "$action"
+fi
