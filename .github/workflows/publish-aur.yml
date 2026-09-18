@@ -13,8 +13,10 @@ permissions:
 
 jobs:
   publish:
-    # The protected `aur` environment should also require you as reviewer.
-    if: github.actor == github.repository_owner && inputs.confirm == 'PUBLISH'
+    # Publishing is intentionally disabled until the package has been tested.
+    # Replace this with the owner/confirmation check below when ready:
+    # github.actor == github.repository_owner && inputs.confirm == 'PUBLISH'
+    if: ${{ false }}
     runs-on: ubuntu-latest
     environment: aur
     steps:
